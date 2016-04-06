@@ -1,6 +1,16 @@
 <?php
 /**
- * Class for generating SQL clauses that filter a primary query according to metadata keys and values.
+ * Meta API: WP_Meta_Query class
+ *
+ * @package WordPress
+ * @subpackage Meta
+ * @since 4.4.0
+ */
+
+/**
+ * Core class used to implement meta queries for the Meta API.
+ *
+ * Used for generating SQL clauses that filter a primary query according to metadata keys and values.
  *
  * `WP_Meta_Query` is a helper that allows primary query classes, such as {@see WP_Query} and {@see WP_User_Query},
  * to filter their results by object metadata, by generating `JOIN` and `WHERE` subclauses to be attached
@@ -114,8 +124,9 @@ class WP_Meta_Query {
 	 *         @type string $key     Meta key to filter by.
 	 *         @type string $value   Meta value to filter by.
 	 *         @type string $compare MySQL operator used for comparing the $value. Accepts '=',
-	 *                               '!=', '>', '>=', '<', '<=', 'LIKE', 'NOT LIKE', 'IN', 'NOT IN',
-	 *                               'BETWEEN', 'NOT BETWEEN', 'REGEXP', 'NOT REGEXP', or 'RLIKE'.
+	 *                               '!=', '>', '>=', '<', '<=', 'LIKE', 'NOT LIKE',
+	 *                               'IN', 'NOT IN', 'BETWEEN', 'NOT BETWEEN', 'REGEXP',
+	 *                               'NOT REGEXP', 'RLIKE', 'EXISTS' or 'NOT EXISTS'.
 	 *                               Default is 'IN' when `$value` is an array, '=' otherwise.
 	 *         @type string $type    MySQL data type that the meta_value column will be CAST to for
 	 *                               comparisons. Accepts 'NUMERIC', 'BINARY', 'CHAR', 'DATE',
@@ -336,16 +347,12 @@ class WP_Meta_Query {
 		 *
 		 * @since 3.1.0
 		 *
-		 * @param array $args {
-		 *     An array of meta query SQL arguments.
-		 *
-		 *     @type array  $clauses           Array containing the query's JOIN and WHERE clauses.
-		 *     @type array  $queries           Array of meta queries.
-		 *     @type string $type              Type of meta.
-		 *     @type string $primary_table     Primary table.
-		 *     @type string $primary_id_column Primary column ID.
-		 *     @type object $context           The main query object.
-		 * }
+		 * @param array  $clauses           Array containing the query's JOIN and WHERE clauses.
+		 * @param array  $queries           Array of meta queries.
+		 * @param string $type              Type of meta.
+		 * @param string $primary_table     Primary table.
+		 * @param string $primary_id_column Primary column ID.
+		 * @param object $context           The main query object.
 		 */
 		return apply_filters_ref_array( 'get_meta_sql', array( $sql, $this->queries, $type, $primary_table, $primary_id_column, $context ) );
 	}
@@ -474,7 +481,7 @@ class WP_Meta_Query {
 	 * @since 4.1.0
 	 * @access public
 	 *
-	 * @global wpdb $wpdb
+	 * @global wpdb $wpdb WordPress database abstraction object.
 	 *
 	 * @param array  $clause       Query clause, passed by reference.
 	 * @param array  $parent_query Parent query array.
@@ -548,8 +555,8 @@ class WP_Meta_Query {
 		$meta_type  = $this->get_cast_for_type( $_meta_type );
 		$clause['cast'] = $meta_type;
 
-		// Fallback for clause keys is the table alias.
-		if ( ! $clause_key ) {
+		// Fallback for clause keys is the table alias. Key must be a string.
+		if ( is_int( $clause_key ) || ! $clause_key ) {
 			$clause_key = $clause['alias'];
 		}
 

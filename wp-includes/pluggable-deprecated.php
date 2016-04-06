@@ -35,6 +35,23 @@ function set_current_user($id, $name = '') {
 }
 endif;
 
+if ( !function_exists('get_currentuserinfo') ) :
+/**
+ * Populate global variables with information about the currently logged in user.
+ *
+ * @since 0.71
+ * @deprecated 4.5.0 Use wp_get_current_user()
+ * @see wp_get_current_user()
+ *
+ * @return bool|WP_User False on XMLRPC Request and invalid auth cookie, WP_User instance otherwise.
+ */
+function get_currentuserinfo() {
+	_deprecated_function( __FUNCTION__, '4.5', 'wp_get_current_user()' );
+
+	return _wp_get_current_user();
+}
+endif;
+
 if ( !function_exists('get_userdatabylogin') ) :
 /**
  * Retrieve user info by login name.
@@ -178,7 +195,7 @@ endif;
  *
  * @link https://wordpress.org/plugins/atom-publishing-protocol/
  */
-if ( ! class_exists( 'wp_atom_server' ) ) {
+if ( ! class_exists( 'wp_atom_server', false ) ) {
 	class wp_atom_server {
 		public function __call( $name, $arguments ) {
 			_deprecated_function( __CLASS__ . '::' . $name, '3.5', 'the Atom Publishing Protocol plugin' );

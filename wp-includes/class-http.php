@@ -1,6 +1,14 @@
 <?php
 /**
- * WordPress HTTP Class for managing HTTP Transports and making HTTP requests.
+ * HTTP API: WP_Http class
+ *
+ * @package WordPress
+ * @subpackage HTTP
+ * @since 2.7.0
+ */
+
+/**
+ * Core class used for managing HTTP transports and making HTTP requests.
  *
  * This class is used to consistently make outgoing HTTP requests easy for developers
  * while still being compatible with the many PHP configurations under which
@@ -8,11 +16,74 @@
  *
  * Debugging includes several actions, which pass different variables for debugging the HTTP API.
  *
- * @package WordPress
- * @subpackage HTTP
  * @since 2.7.0
  */
 class WP_Http {
+
+	// Aliases for HTTP response codes.
+	const HTTP_CONTINUE                   = 100;
+	const SWITCHING_PROTOCOLS             = 101;
+	const PROCESSING                      = 102;
+
+	const OK                              = 200;
+	const CREATED                         = 201;
+	const ACCEPTED                        = 202;
+	const NON_AUTHORITATIVE_INFORMATION   = 203;
+	const NO_CONTENT                      = 204;
+	const RESET_CONTENT                   = 205;
+	const PARTIAL_CONTENT                 = 206;
+	const MULTI_STATUS                    = 207;
+	const IM_USED                         = 226;
+
+	const MULTIPLE_CHOICES                = 300;
+	const MOVED_PERMANENTLY               = 301;
+	const FOUND                           = 302;
+	const SEE_OTHER                       = 303;
+	const NOT_MODIFIED                    = 304;
+	const USE_PROXY                       = 305;
+	const RESERVED                        = 306;
+	const TEMPORARY_REDIRECT              = 307;
+	const PERMANENT_REDIRECT              = 308;
+
+	const BAD_REQUEST                     = 400;
+	const UNAUTHORIZED                    = 401;
+	const PAYMENT_REQUIRED                = 402;
+	const FORBIDDEN                       = 403;
+	const NOT_FOUND                       = 404;
+	const METHOD_NOT_ALLOWED              = 405;
+	const NOT_ACCEPTABLE                  = 406;
+	const PROXY_AUTHENTICATION_REQUIRED   = 407;
+	const REQUEST_TIMEOUT                 = 408;
+	const CONFLICT                        = 409;
+	const GONE                            = 410;
+	const LENGTH_REQUIRED                 = 411;
+	const PRECONDITION_FAILED             = 412;
+	const REQUEST_ENTITY_TOO_LARGE        = 413;
+	const REQUEST_URI_TOO_LONG            = 414;
+	const UNSUPPORTED_MEDIA_TYPE          = 415;
+	const REQUESTED_RANGE_NOT_SATISFIABLE = 416;
+	const EXPECTATION_FAILED              = 417;
+	const IM_A_TEAPOT                     = 418;
+	const MISDIRECTED_REQUEST             = 421;
+	const UNPROCESSABLE_ENTITY            = 422;
+	const LOCKED                          = 423;
+	const FAILED_DEPENDENCY               = 424;
+	const UPGRADE_REQUIRED                = 426;
+	const PRECONDITION_REQUIRED           = 428;
+	const TOO_MANY_REQUESTS               = 429;
+	const REQUEST_HEADER_FIELDS_TOO_LARGE = 431;
+	const UNAVAILABLE_FOR_LEGAL_REASONS   = 451;
+
+	const INTERNAL_SERVER_ERROR           = 500;
+	const NOT_IMPLEMENTED                 = 501;
+	const BAD_GATEWAY                     = 502;
+	const SERVICE_UNAVAILABLE             = 503;
+	const GATEWAY_TIMEOUT                 = 504;
+	const HTTP_VERSION_NOT_SUPPORTED      = 505;
+	const VARIANT_ALSO_NEGOTIATES         = 506;
+	const INSUFFICIENT_STORAGE            = 507;
+	const NOT_EXTENDED                    = 510;
+	const NETWORK_AUTHENTICATION_REQUIRED = 511;
 
 	/**
 	 * Send an HTTP request to a URI.
@@ -153,18 +224,25 @@ class WP_Http {
 			$r['_redirection'] = $r['redirection'];
 
 		/**
-		 * Filter whether to preempt an HTTP request's return.
+		 * Filter whether to preempt an HTTP request's return value.
 		 *
-		 * Returning a truthy value to the filter will short-circuit
-		 * the HTTP request and return early with that value.
+		 * Returning a non-false value from the filter will short-circuit the HTTP request and return
+		 * early with that value. A filter should return either:
+		 *
+		 *  - An array containing 'headers', 'body', 'response', 'cookies', and 'filename' elements
+		 *  - A WP_Error instance
+		 *  - boolean false (to avoid short-circuiting the response)
+		 *
+		 * Returning any other value may result in unexpected behaviour.
 		 *
 		 * @since 2.9.0
 		 *
-		 * @param bool   $preempt Whether to preempt an HTTP request return. Default false.
-		 * @param array  $r       HTTP request arguments.
-		 * @param string $url     The request URL.
+		 * @param false|array|WP_Error $preempt Whether to preempt an HTTP request's return value. Default false.
+		 * @param array               $r        HTTP request arguments.
+		 * @param string              $url      The request URL.
 		 */
 		$pre = apply_filters( 'pre_http_request', false, $r, $url );
+
 		if ( false !== $pre )
 			return $pre;
 
@@ -285,7 +363,7 @@ class WP_Http {
 	 * Tests which transports are capable of supporting the request.
 	 *
 	 * @since 3.2.0
-	 * @access private
+	 * @access public
 	 *
 	 * @param array $args Request arguments
 	 * @param string $url URL to Request
@@ -293,21 +371,26 @@ class WP_Http {
 	 * @return string|false Class name for the first transport that claims to support the request. False if no transport claims to support the request.
 	 */
 	public function _get_first_available_transport( $args, $url = null ) {
+		$transports = array( 'curl', 'streams' );
+
 		/**
 		 * Filter which HTTP transports are available and in what order.
 		 *
 		 * @since 3.7.0
 		 *
-		 * @param array  $value Array of HTTP transports to check. Default array contains
-		 *                      'curl', and 'streams', in that order.
-		 * @param array  $args  HTTP request arguments.
-		 * @param string $url   The URL to request.
+		 * @param array  $transports Array of HTTP transports to check. Default array contains
+		 *                           'curl', and 'streams', in that order.
+		 * @param array  $args       HTTP request arguments.
+		 * @param string $url        The URL to request.
 		 */
-		$request_order = apply_filters( 'http_api_transports', array( 'curl', 'streams' ), $args, $url );
+		$request_order = apply_filters( 'http_api_transports', $transports, $args, $url );
 
 		// Loop over each transport on each HTTP request looking for one which will serve this request's needs.
 		foreach ( $request_order as $transport ) {
-			$class = 'WP_HTTP_' . $transport;
+			if ( in_array( $transport, $transports ) ) {
+				$transport = ucfirst( $transport );
+			}
+			$class = 'WP_Http_' . $transport;
 
 			// Check to see if this transport is a possibility, calls the transport statically.
 			if ( !call_user_func( array( $class, 'test' ), $args, $url ) )
@@ -542,7 +625,7 @@ class WP_Http {
 			// Upgrade any name => value cookie pairs to WP_HTTP_Cookie instances.
 			foreach ( $r['cookies'] as $name => $value ) {
 				if ( ! is_object( $value ) )
-					$r['cookies'][ $name ] = new WP_HTTP_Cookie( array( 'name' => $name, 'value' => $value ) );
+					$r['cookies'][ $name ] = new WP_Http_Cookie( array( 'name' => $name, 'value' => $value ) );
 			}
 
 			$cookies_header = '';
@@ -606,7 +689,7 @@ class WP_Http {
 	 * prevent plugins from working and core functionality, if you don't include api.wordpress.org.
 	 *
 	 * You block external URL requests by defining WP_HTTP_BLOCK_EXTERNAL as true in your wp-config.php
-	 * file and this will only allow localhost and your blog to make requests. The constant
+	 * file and this will only allow localhost and your site to make requests. The constant
 	 * WP_ACCESSIBLE_HOSTS will allow additional hosts to go through for requests. The format of the
 	 * WP_ACCESSIBLE_HOSTS constant is a comma separated list of hostnames to allow, wildcard domains
 	 * are supported, eg *.wordpress.org will allow for all subdomains of wordpress.org to be contacted.
@@ -669,47 +752,19 @@ class WP_Http {
 	}
 
 	/**
-	 * A wrapper for PHP's parse_url() function that handles edgecases in < PHP 5.4.7
+	 * Used as a wrapper for PHP's parse_url() function that handles edgecases in < PHP 5.4.7.
 	 *
-	 * PHP 5.4.7 expanded parse_url()'s ability to handle non-absolute url's, including
-	 * schemeless and relative url's with :// in the path, this works around those
-	 * limitations providing a standard output on PHP 5.2~5.4+.
-	 *
-	 * Error suppression is used as prior to PHP 5.3.3, an E_WARNING would be generated
-	 * when URL parsing failed.
-	 *
-	 * @since 4.1.0
-	 *
-	 * @static
 	 * @access protected
+	 * @deprecated 4.4.0 Use wp_parse_url()
+	 * @see wp_parse_url()
 	 *
 	 * @param string $url The URL to parse.
 	 * @return bool|array False on failure; Array of URL components on success;
 	 *                    See parse_url()'s return values.
 	 */
 	protected static function parse_url( $url ) {
-		$parts = @parse_url( $url );
-		if ( ! $parts ) {
-			// < PHP 5.4.7 compat, trouble with relative paths including a scheme break in the path
-			if ( '/' == $url[0] && false !== strpos( $url, '://' ) ) {
-				// Since we know it's a relative path, prefix with a scheme/host placeholder and try again
-				if ( ! $parts = @parse_url( 'placeholder://placeholder' . $url ) ) {
-					return $parts;
-				}
-				// Remove the placeholder values
-				unset( $parts['scheme'], $parts['host'] );
-			} else {
-				return $parts;
-			}
-		}
-
-		// < PHP 5.4.7 compat, doesn't detect schemeless URL's host field
-		if ( '//' == substr( $url, 0, 2 ) && ! isset( $parts['host'] ) ) {
-			list( $parts['host'], $slashless_path ) = explode( '/', substr( $parts['path'], 2 ), 2 );
-			$parts['path'] = "/{$slashless_path}";
-		}
-
-		return $parts;
+		_deprecated_function( __METHOD__, '4.4.0', 'wp_parse_url()' );
+		return wp_parse_url( $url );
 	}
 
 	/**
@@ -730,11 +785,11 @@ class WP_Http {
 		if ( empty( $url ) )
 			return $maybe_relative_path;
 
-		if ( ! $url_parts = WP_HTTP::parse_url( $url ) ) {
+		if ( ! $url_parts = wp_parse_url( $url ) ) {
 			return $maybe_relative_path;
 		}
 
-		if ( ! $relative_url_parts = WP_HTTP::parse_url( $maybe_relative_path ) ) {
+		if ( ! $relative_url_parts = wp_parse_url( $maybe_relative_path ) ) {
 			return $maybe_relative_path;
 		}
 
@@ -818,7 +873,7 @@ class WP_Http {
 		if ( is_array( $redirect_location ) )
 			$redirect_location = array_pop( $redirect_location );
 
-		$redirect_location = WP_HTTP::make_absolute_url( $redirect_location, $url );
+		$redirect_location = WP_Http::make_absolute_url( $redirect_location, $url );
 
 		// POST requests should not POST to a redirected location.
 		if ( 'POST' == $args['method'] ) {
@@ -845,7 +900,7 @@ class WP_Http {
 	 * This does not verify if the IP is a valid IP, only that it appears to be
 	 * an IP address.
 	 *
-	 * @see http://home.deds.nl/~aeron/regex/ for IPv6 regex
+	 * @link http://home.deds.nl/~aeron/regex/ for IPv6 regex
 	 *
 	 * @since 3.7.0
 	 * @static

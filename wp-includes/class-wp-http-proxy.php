@@ -1,6 +1,14 @@
 <?php
 /**
- * Adds Proxy support to the WordPress HTTP API.
+ * HTTP API: WP_HTTP_Proxy class
+ *
+ * @package WordPress
+ * @subpackage HTTP
+ * @since 4.4.0
+ */
+
+/**
+ * Core class used to implement HTTP API proxy support.
  *
  * There are caveats to proxy support. It requires that defines be made in the wp-config.php file to
  * enable proxy support. There are also a few filters that plugins can hook into for some of the
@@ -16,7 +24,7 @@
  * <li>WP_PROXY_USERNAME - Proxy username, if it requires authentication.</li>
  * <li>WP_PROXY_PASSWORD - Proxy password, if it requires authentication.</li>
  * <li>WP_PROXY_BYPASS_HOSTS - Will prevent the hosts in this list from going through the proxy.
- * You do not need to have localhost and the blog host in this list, because they will not be passed
+ * You do not need to have localhost and the site host in this list, because they will not be passed
  * through the proxy. The list should be presented in a comma separated list, wildcards using * are supported, eg. *.wordpress.org</li>
  * </ol>
  *
@@ -28,6 +36,7 @@
  *
  * @link https://core.trac.wordpress.org/ticket/4011 Proxy support ticket in WordPress.
  * @link https://core.trac.wordpress.org/ticket/14636 Allow wildcard domains in WP_PROXY_BYPASS_HOSTS
+ *
  * @since 2.8.0
  */
 class WP_HTTP_Proxy {
@@ -141,7 +150,7 @@ class WP_HTTP_Proxy {
 	/**
 	 * Whether URL should be sent through the proxy server.
 	 *
-	 * We want to keep localhost and the blog URL from being sent through the proxy server, because
+	 * We want to keep localhost and the site URL from being sent through the proxy server, because
 	 * some proxies can not handle this. We also have the constant available for defining other
 	 * hosts that won't be sent through the proxy.
 	 *
@@ -156,7 +165,7 @@ class WP_HTTP_Proxy {
 	public function send_through_proxy( $uri ) {
 		/*
 		 * parse_url() only handles http, https type URLs, and will emit E_WARNING on failure.
-		 * This will be displayed on blogs, which is not reasonable.
+		 * This will be displayed on sites, which is not reasonable.
 		 */
 		$check = @parse_url($uri);
 

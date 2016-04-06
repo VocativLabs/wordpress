@@ -37,6 +37,8 @@ function get_dashboard_blog() {
  * @since MU
  * @deprecated 3.0.0 Use wp_generate_password()
  * @see wp_generate_password()
+ *
+ * @param int $len Optional. The length of password to generate. Default 8.
  */
 function generate_random_password( $len = 8 ) {
 	_deprecated_function( __FUNCTION__, '3.0', 'wp_generate_password()' );
@@ -55,6 +57,8 @@ function generate_random_password( $len = 8 ) {
  * @since MU
  * @deprecated 3.0.0 Use is_super_admin()
  * @see is_super_admin()
+ *
+ * @param string $user_login Optional. Username for the user to check. Default empty.
  */
 function is_site_admin( $user_login = '' ) {
 	_deprecated_function( __FUNCTION__, '3.0', 'is_super_admin()' );
@@ -118,6 +122,8 @@ endif;
  * @since MU
  * @deprecated 3.0.0 Use get_user_by()
  * @see get_user_by()
+ *
+ * @param string $username Username.
  */
 function get_user_details( $username ) {
 	_deprecated_function( __FUNCTION__, '3.0', 'get_user_by()' );
@@ -130,6 +136,8 @@ function get_user_details( $username ) {
  * @since MU
  * @deprecated 3.0.0 Use clean_post_cache()
  * @see clean_post_cache()
+ *
+ * @param int $post_id Post ID.
  */
 function clear_global_post_cache( $post_id ) {
 	_deprecated_function( __FUNCTION__, '3.0', 'clean_post_cache()' );
@@ -153,6 +161,10 @@ function is_main_blog() {
  * @since MU
  * @deprecated 3.0.0 Use is_email()
  * @see is_email()
+ *
+ * @param string $email        Email address to verify.
+ * @param bool   $check_domain Deprecated.
+ * @return string|bool Either false or the valid email address.
  */
 function validate_email( $email, $check_domain = true) {
 	_deprecated_function( __FUNCTION__, '3.0', 'is_email()' );
@@ -165,6 +177,10 @@ function validate_email( $email, $check_domain = true) {
  * @since MU
  * @deprecated 3.0.0 Use wp_get_sites()
  * @see wp_get_sites()
+ *
+ * @param int    $start      Optional. Offset for retrieving the blog list. Default 0.
+ * @param int    $num        Optional. Number of blogs to list. Default 10.
+ * @param string $deprecated Unused.
  */
 function get_blog_list( $start = 0, $num = 10, $deprecated = '' ) {
 	_deprecated_function( __FUNCTION__, '3.0', 'wp_get_sites()' );
@@ -195,6 +211,8 @@ function get_blog_list( $start = 0, $num = 10, $deprecated = '' ) {
  * @since MU
  * @deprecated 3.0.0
  *
+ * @param int  $num     Optional. Number of activate blogs to retrieve. Default 10.
+ * @param bool $display Optional. Whether or not to display the most active blogs list. Default true.
  * @return array List of "most active" sites.
  */
 function get_most_active_blogs( $num = 10, $display = true ) {
@@ -246,7 +264,7 @@ function get_most_active_blogs( $num = 10, $display = true ) {
  * @deprecated 3.3.0 Use wp_redirect()
  * @see wp_redirect()
  *
- * @param string $url
+ * @param string $url Optional. Redirect URL. Default empty.
  */
 function wpmu_admin_do_redirect( $url = '' ) {
 	_deprecated_function( __FUNCTION__, '3.3' );
@@ -285,7 +303,7 @@ function wpmu_admin_do_redirect( $url = '' ) {
  * @deprecated 3.3.0 Use add_query_arg()
  * @see add_query_arg()
  *
- * @param string $url
+ * @param string $url Optional. Redirect URL. Default empty.
  * @return string
  */
 function wpmu_admin_redirect_add_updated_param( $url = '' ) {
@@ -355,4 +373,68 @@ function get_blogaddress_by_domain( $domain, $path ) {
 		}
 	}
 	return esc_url_raw( $url );
+}
+
+/**
+ * Create an empty blog.
+ *
+ * @since MU 1.0
+ * @deprecated 4.4.0
+ *
+ * @param string $domain       The new blog's domain.
+ * @param string $path         The new blog's path.
+ * @param string $weblog_title The new blog's title.
+ * @param int    $site_id      Optional. Defaults to 1.
+ * @return string|int The ID of the newly created blog
+ */
+function create_empty_blog( $domain, $path, $weblog_title, $site_id = 1 ) {
+	_deprecated_function( __FUNCTION__, '4.4' );
+
+	if ( empty($path) )
+		$path = '/';
+
+	// Check if the domain has been used already. We should return an error message.
+	if ( domain_exists($domain, $path, $site_id) )
+		return __( '<strong>ERROR</strong>: Site URL already taken.' );
+
+	// Need to back up wpdb table names, and create a new wp_blogs entry for new blog.
+	// Need to get blog_id from wp_blogs, and create new table names.
+	// Must restore table names at the end of function.
+
+	if ( ! $blog_id = insert_blog($domain, $path, $site_id) )
+		return __( '<strong>ERROR</strong>: problem creating site entry.' );
+
+	switch_to_blog($blog_id);
+	install_blog($blog_id);
+	restore_current_blog();
+
+	return $blog_id;
+}
+
+/**
+ * Get the admin for a domain/path combination.
+ *
+ * @since MU 1.0
+ * @deprecated 4.4.0
+ *
+ * @global wpdb $wpdb WordPress database abstraction object.
+ *
+ * @param string $sitedomain Optional. Site domain.
+ * @param string $path       Optional. Site path.
+ * @return array|false The network admins
+ */
+function get_admin_users_for_domain( $sitedomain = '', $path = '' ) {
+	_deprecated_function( __FUNCTION__, '4.4' );
+
+	global $wpdb;
+
+	if ( ! $sitedomain )
+		$site_id = $wpdb->siteid;
+	else
+		$site_id = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM $wpdb->site WHERE domain = %s AND path = %s", $sitedomain, $path ) );
+
+	if ( $site_id )
+		return $wpdb->get_results( $wpdb->prepare( "SELECT u.ID, u.user_login, u.user_pass FROM $wpdb->users AS u, $wpdb->sitemeta AS sm WHERE sm.meta_key = 'admin_user_id' AND u.ID = sm.meta_value AND sm.site_id = %d", $site_id ), ARRAY_A );
+
+	return false;
 }
